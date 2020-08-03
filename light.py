@@ -10,6 +10,7 @@ import logging
 
 from homeassistant.const import CONF_FILENAME, CONF_HOST, CONF_TOKEN, CONF_NAME
 from homeassistant.components.light import PLATFORM_SCHEMA
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
 import homeassistant.helpers.config_validation as cv
 
 _LOGGER = logging.getLogger(__name__)
@@ -71,7 +72,6 @@ class XiaomiSmartBulb(LightEntity):
         self._available = False
         _LOGGER.error("My name :%s", self._name)
 
-
     #def __init__(self, device, custom_effects=None):
         """Initialize the Yeelight light."""
     #    _LOGGER.error("Start initalizing :%s", device)
@@ -91,7 +91,7 @@ class XiaomiSmartBulb(LightEntity):
     @property
     def should_poll(self):
         """No polling needed."""
-        return False
+        return True
 
     @property
     def available(self):
