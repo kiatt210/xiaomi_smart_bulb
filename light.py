@@ -1,9 +1,13 @@
 from homeassistant.components.light import (LightEntity, 
     ATTR_BRIGHTNESS,
+    ATTR_COLOR_TEMP,
+    SUPPORT_COLOR_TEMP,
+    SUPPORT_BRIGHTNESS,
     ATTR_HS_COLOR,
     ATTR_COLOR_TEMP)
 
 import voluptuous as vol
+from math import ceil
 from typing import Optional
 from functools import partial
 import logging
@@ -13,11 +17,19 @@ from homeassistant.components.light import PLATFORM_SCHEMA
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 import homeassistant.helpers.config_validation as cv
 
+from homeassistant.util.color import (
+    color_temperature_kelvin_to_mired as kelvin_to_mired,
+    color_temperature_mired_to_kelvin as mired_to_kelvin,
+)
+
 _LOGGER = logging.getLogger(__name__)
 DEFAULT_NAME = "Xiaomi Smart Bulb"
 DATA_KEY = "light.xiaomi_miio"
 ATTR_MODEL = "model"
 SUCCESS = ["ok"]
+
+CCT_MIN = 1
+CCT_MAX = 100
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
     {
@@ -29,7 +41,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
         """Set up the light from config."""
-        from miio import Device, DeviceException, PhilipsBulb
+        from miio import Device, DeviceException, Yeelight
 
         if DATA_KEY not in hass.data:
             hass.data[DATA_KEY] = {}
@@ -45,16 +57,12 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
 
         lights = []
 
-        light = PhilipsBulb(host, token)
+        light = Yeelight(host, token)
         device = XiaomiSmartBulb(name, light, unique_id)
 
         lights.append(device)
         add_entities(lights)
         hass.data[DATA_KEY][host] = light
-
-#    device = XiaomiPhilipsBulb(name, light, model, unique_id)
-#    devices.append(device)
-#    hass.data[DATA_KEY][host] = device
 
 
 class XiaomiSmartBulb(LightEntity):
@@ -66,27 +74,33 @@ class XiaomiSmartBulb(LightEntity):
         self._device = device
         self._unique_id = unique_id
         self._state = None
+        self._color_temp = None
         self._model = "xiaomi_smart_led"
         self._brightness = None
         self._state_attrs = {ATTR_MODEL: self._model}
         self._available = False
         _LOGGER.error("My name :%s", self._name)
 
-    #def __init__(self, device, custom_effects=None):
-        """Initialize the Yeelight light."""
-    #    _LOGGER.error("Start initalizing :%s", device)
-    #    self.config = device.config
-    ##    self._device = device
+    @staticmethod
+    def translate(value, left_min, left_max, right_min, right_max):
+        """Map a value from left span to right span."""
+        left_span = left_max - left_min
+        right_span = right_max - right_min
+        value_scaled = float(value - left_min) / float(left_span)
+        _LOGGER.info("Translate result :%s", int(right_min + (value_scaled * right_span)) )
+        return int(right_min + (value_scaled * right_span)) 
 
-    #    self._brightness = None
-    #    self._color_temp = None
-    #    self._hs = None
-    #    self._effect = None
-
-    #    self._light_type = LightType.Main
-
-    #    _LOGGER.error("My name :%s", self.name)
+    @staticmethod
+    def translate_to_value(percent, min, max):
+        """Translate percentage to value """
+        scale = max -min
+        _LOGGER.info("Translate %s, %s, %s result: %s", percent,min,max, int (value = percent * (scale/100)))
+        return int (value = percent * (scale/100))
     
+    @property
+    def supported_features(self):
+        """Return the supported features."""
+        return SUPPORT_BRIGHTNESS | SUPPORT_COLOR_TEMP
 
     @property
     def should_poll(self):
@@ -114,6 +128,27 @@ class XiaomiSmartBulb(LightEntity):
     def name(self):
         """Return the display name of this light."""
         return self._name
+    @property
+    def color_temp(self):
+        """Return the CT color value in mireds."""
+        _LOGGER.info("Return color temp: %s", self._color_temp)
+        return self._color_temp
+    
+    @property
+    def brightness(self):
+        """Return the brightness of this light between 0..255."""
+        _LOGGER.info("Return brightness: %s", self._brightness)
+        return self._brightness
+
+    @property
+    def min_mireds(self):
+        """Return the coldest color_temp that this light supports."""
+        return 1700
+
+    @property
+    def max_mireds(self):
+        """Return the warmest color_temp that this light supports."""
+        return 6500
 
     async def async_update(self):
         _LOGGER.info("async_update")
@@ -130,7 +165,11 @@ class XiaomiSmartBulb(LightEntity):
         _LOGGER.info("Got new state: %s", state)        
         self._available = True
         self._state = state.is_on
-        #self._brightness = ceil((255 / 100.0) * state.brightness)
+        self._brightness = ceil((255 / 100.0) * state.brightness)
+        self._color_temp = state.color_temp
+        #self._color_temp = self.translate(
+        #    state.color_temp, CCT_MIN, CCT_MAX, self.max_mireds, self.min_mireds
+        #)
 
 
     async def _try_command(self, mask_error, func, *args, **kwargs):
@@ -150,21 +189,67 @@ class XiaomiSmartBulb(LightEntity):
             _LOGGER.error(mask_error, exc)
             self._available = False
             return False
-
     
-    def turn_on(self, **kwargs):
-        """Turn the device on."""   
-        _LOGGER.error("Turn_on")
-        self._try_command("Turning the light on failed.", self._device.on)
-        self._state=True
     async def async_turn_on(self, **kwargs):
         """Turn device on."""
-        _LOGGER.error("Async turn_on")
+        if ATTR_COLOR_TEMP in kwargs:
+            color_temp = kwargs[ATTR_COLOR_TEMP]
+            percent_color_temp = self.translate(
+                color_temp, self.max_mireds, self.min_mireds, CCT_MIN, CCT_MAX
+            )
+
         if ATTR_BRIGHTNESS in kwargs:
             brightness = kwargs[ATTR_BRIGHTNESS]
             percent_brightness = ceil(100 * brightness / 255.0)
 
-            _LOGGER.debug("Setting brightness: %s %s%%", brightness, percent_brightness)
+        if ATTR_BRIGHTNESS in kwargs and ATTR_COLOR_TEMP in kwargs:
+            _LOGGER.error(
+                "Setting brightness and color temperature: "
+                "%s %s%%, %s mireds, %s%% cct",
+                brightness,
+                percent_brightness,
+                color_temp,
+                percent_color_temp,
+            )
+
+            result = await self._try_command(
+                "Setting brightness and color temperature failed: " "%s bri, %s cct",
+                self._device.set_brightness_and_color_temperature,
+                percent_brightness,
+                percent_color_temp,
+            )
+
+            if result:
+                #self._color_temp = self.translate(
+                #    state.color_temp, CCT_MIN, CCT_MAX, self.max_mireds, self.min_mireds
+                #)
+                self._color_temp = state.color_temp
+                self._brightness = brightness
+
+        elif ATTR_COLOR_TEMP in kwargs:
+            _LOGGER.error(
+                "Setting color temperature: " "%s mireds, %s%% cct",
+                color_temp,
+                percent_color_temp,
+            )
+
+            result = await self._try_command(
+                "Setting color temperature failed: %s cct",
+                self._device.set_color_temp,
+                color_temp,
+            )
+
+            if result:
+                #self._color_temp = self.translate(
+                #    state.color_temp, CCT_MIN, CCT_SMAX, self.max_mireds, self.min_mireds
+                #)
+                self._color_temp = color_temp                                  
+
+        elif ATTR_BRIGHTNESS in kwargs:
+            brightness = kwargs[ATTR_BRIGHTNESS]
+            percent_brightness = ceil(100 * brightness / 255.0)
+
+            _LOGGER.error("Setting brightness: %s %s%%", brightness, percent_brightness)
 
             result = await self._try_command(
                 "Setting brightness failed: %s",
@@ -174,10 +259,10 @@ class XiaomiSmartBulb(LightEntity):
 
             if result:
                 self._brightness = brightness
-            self._state=True
+
         else:
             await self._try_command("Turning the light on failed.", self._device.on)
-            self._state=True
+
     def turn_off(self, **kwargs):
         """Turn the device off."""
         _LOGGER.error("Turn_off")
