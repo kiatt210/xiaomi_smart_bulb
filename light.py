@@ -56,8 +56,6 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
         token = config.get(CONF_TOKEN)
         unique_id = "xiao_bulb_"+token[:5]
 
-        #custom_effects = _parse_custom_effects(discovery_info[CONF_CUSTOM_EFFECTS])
-
         _LOGGER.info("Initializing with host %s (token %s...), name: %s", host, token[:5],name)
 
         lights = []
@@ -254,7 +252,6 @@ class XiaomiSmartBulb(LightEntity):
                 self._color_temp = color_temp                                  
 
         elif ATTR_RGB_COLOR in kwargs or ATTR_HS_COLOR in kwargs:
-            rgb_int=int(rgb[0] << 16 | rgb[1] << 8 | rgb[2])
             _LOGGER.debug("Set rgb color to:set_rgb '["+str(rgb_int)+",\"smooth\",500]'")
 
             result = await self._try_command(
