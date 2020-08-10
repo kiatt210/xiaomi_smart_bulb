@@ -1,0 +1,10 @@
+{
+    "domain": "ha-xiaomi-smart-bulb",
+    "name": "Xiaomi Smart Bulb",
+    "documentation": "https://github.com/kiatt210/ha-xiaomi-smart-bulb",
+    "requirements": ["python-miio"],
+    "dependencies": [],
+    "codeowners": ["@kiatt210"],
+    "homeassistant": "0.113.1",
+    "config_flow": true
+  }
