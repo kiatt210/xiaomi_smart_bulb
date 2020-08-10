@@ -10,10 +10,10 @@ https://github.com/Maxmudjon/com.xiaomi-miio/blob/master/docs/obtain_token.md
 Configuration
 
 Example configuration.yaml
-<code>
+
 light:
   - platform: xiaomi_smart_bulb
     name: DolgozoLampa
     host: 192.168.0.101
     token: <token>
-</code>
+
