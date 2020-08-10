@@ -31,7 +31,7 @@ Example configuration.yaml
 ```
 light:
   - platform: xiaomi_smart_bulb
-    name: DolgozoLampa
+    name: OfficeLamp
     host: 192.168.0.101
     token: <token>
 ```
