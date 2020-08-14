@@ -252,7 +252,7 @@ class XiaomiSmartBulb(LightEntity):
                 self._color_temp = color_temp                                  
 
         elif ATTR_RGB_COLOR in kwargs or ATTR_HS_COLOR in kwargs:
-            _LOGGER.debug("Set rgb color to:set_rgb '["+str(rgb_int)+",\"smooth\",500]'")
+            _LOGGER.debug("Set rgb color to:set_rgb '["+str(rgb)+",\"smooth\",500]'")
 
             result = await self._try_command(
                 "Setting rgb failed: %s",
