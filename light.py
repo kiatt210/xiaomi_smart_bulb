@@ -174,7 +174,7 @@ class XiaomiSmartBulb(LightEntity):
         self._available = True
         self._state = yeelight_state.is_on
         self._brightness = ceil((255 / 100.0) * yeelight_state.brightness)
-        self._color_temp = yeelight_state.color_temp
+        self._color_temp = 6500-(abs(yeelight_state.color_temp-1700))
         self._rgb = yeelight_state.rgb
 
     async def _try_command(self, mask_error, func, *args, **kwargs):
@@ -202,6 +202,8 @@ class XiaomiSmartBulb(LightEntity):
             percent_color_temp = self.translate(
                 color_temp, self.max_mireds, self.min_mireds, CCT_MIN, CCT_MAX
             )
+            
+            device_color_temp = 6500 - (abs(color_temp - 1700))
 
         if ATTR_BRIGHTNESS in kwargs:
             brightness = kwargs[ATTR_BRIGHTNESS]
@@ -220,7 +222,7 @@ class XiaomiSmartBulb(LightEntity):
                 "%s %s%%, %s mireds, %s%% cct",
                 brightness,
                 percent_brightness,
-                color_temp,
+                device_color_temp,
                 percent_color_temp,
             )
 
@@ -238,14 +240,14 @@ class XiaomiSmartBulb(LightEntity):
         elif ATTR_COLOR_TEMP in kwargs:
             _LOGGER.debug(
                 "Setting color temperature: " "%s mireds, %s%% cct",
-                color_temp,
+                device_color_temp,
                 percent_color_temp,
             )
 
             result = await self._try_command(
                 "Setting color temperature failed: %s cct",
                 self._yeelight_device.set_color_temp,
-                color_temp,
+                device_color_temp,
             )
 
             if result:
