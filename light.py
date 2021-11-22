@@ -174,7 +174,8 @@ class XiaomiSmartBulb(LightEntity):
         self._available = True
         self._state = yeelight_state.is_on
         self._brightness = ceil((255 / 100.0) * yeelight_state.brightness)
-        self._color_temp = 6500-(abs(yeelight_state.color_temp-1700))
+        if yeelight_state.color_temp is not None:
+            self._color_temp = 6500-(abs(yeelight_state.color_temp-1700))
         self._rgb = yeelight_state.rgb
 
     async def _try_command(self, mask_error, func, *args, **kwargs):
@@ -279,8 +280,7 @@ class XiaomiSmartBulb(LightEntity):
             if result:
                 self._brightness = brightness
 
-        else:
-            await self._try_command("Turning the light on failed.", self._yeelight_device.on)
+        await self._try_command("Turning the light on failed.", self._yeelight_device.on)
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
