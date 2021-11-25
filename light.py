@@ -198,6 +198,7 @@ class XiaomiSmartBulb(LightEntity):
     
     async def async_turn_on(self, **kwargs):
         """Turn device on."""
+        await self._try_command("Turning the light on failed.", self._yeelight_device.on)
         if ATTR_COLOR_TEMP in kwargs:
             color_temp = kwargs[ATTR_COLOR_TEMP]
             percent_color_temp = self.translate(
@@ -279,8 +280,6 @@ class XiaomiSmartBulb(LightEntity):
 
             if result:
                 self._brightness = brightness
-
-        await self._try_command("Turning the light on failed.", self._yeelight_device.on)
 
     def turn_off(self, **kwargs):
         """Turn the device off."""
